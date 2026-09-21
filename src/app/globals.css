@@ -1,26 +1,141 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff8f0;
+  --foreground: #292524;
+  --card: #ffffff;
+  --card-foreground: #292524;
+  --muted: #f5efe6;
+  --muted-foreground: #78716c;
+  --border: #eee7dc;
+  --primary: #ea580c;
+  --primary-foreground: #fff7ed;
+  --primary-soft: #ffedd5;
+  --secondary: #fed7aa;
+  --secondary-foreground: #9a3412;
+  --accent: #fbbf24;
+  --accent-foreground: #451a03;
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --destructive: #dc2626;
+  --destructive-foreground: #fef2f2;
+  --overlay: rgba(0, 0, 0, 0.45);
+  --radius: 1rem;
+}
+
+.dark {
+  --background: #1c1917;
+  --foreground: #f5f0ea;
+  --card: #292524;
+  --card-foreground: #f5f0ea;
+  --muted: #44403c;
+  --muted-foreground: #a8a29e;
+  --border: #44403c;
+  --primary: #f97316;
+  --primary-foreground: #431407;
+  --primary-soft: #431407;
+  --secondary: #431407;
+  --secondary-foreground: #fdba74;
+  --accent: #fbbf24;
+  --accent-foreground: #451a03;
+  --success: #22c55e;
+  --success-soft: #052e16;
+  --warning: #f59e0b;
+  --warning-soft: #451a03;
+  --destructive: #ef4444;
+  --destructive-foreground: #450a0a;
+  --overlay: rgba(0, 0, 0, 0.7);
+  --radius: 1rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-overlay: var(--overlay);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ---------- Animations ---------- */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.35); }
+  70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+}
+
+.animate-fade-in { animation: fade-in 0.25s ease-out both; }
+.animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.animate-scale-in { animation: scale-in 0.2s ease-out both; }
+.animate-pop { animation: pop 0.3s ease-in-out; }
+.animate-pulse-ring { animation: pulse-ring 2s infinite; }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--border) 50%,
+    var(--muted) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Scrollbar halus untuk kategori horizontal */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Fokus aksesibel */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
