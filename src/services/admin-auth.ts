@@ -1,15 +1,14 @@
 /**
- * AdminAuthService — login admin via email+password (bcrypt),
- * session JWT di cookie httpOnly. Saat migrasi ke Supabase, service ini
- * diganti Supabase Auth tanpa mengubah halaman admin.
+ * AdminAuthService — login admin via Supabase Auth + adminProfiles,
+ * session JWT di cookie httpOnly.
  */
 import 'server-only';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import { createClient } from '@supabase/supabase-js';
 import { SignJWT, jwtVerify } from 'jose';
 import { db } from '@/db';
-import { adminUsers } from '@/db/schema';
+import { adminProfiles } from '@/db/schema';
 import type { AdminLoginInput } from '@/lib/validations';
 
 const COOKIE = 'umkm_admin';
@@ -21,6 +20,24 @@ function getSecret(): Uint8Array {
     throw new Error('AUTH_SECRET belum diset / terlalu pendek (min 32 karakter)');
   }
   return new TextEncoder().encode(secret);
+}
+
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY belum diset di .env');
+  }
+  return createClient(url, key);
+}
+
+function getSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !serviceKey) {
+    throw new Error('Supabase URL atau Key belum dikonfigurasi');
+  }
+  return createClient(url, serviceKey);
 }
 
 export type AdminIdentity = {
@@ -53,8 +70,7 @@ export function clearLoginRateLimit(key: string) {
 }
 
 /**
- * Verifikasi kredensial → buat JWT → set cookie httpOnly.
- * Dibatasi 5 percobaan / 15 menit per email+IP (anti brute-force).
+ * Verifikasi kredensial via Supabase Auth → buat JWT → set cookie httpOnly.
  */
 export async function loginAdmin(
   input: AdminLoginInput,
@@ -66,32 +82,40 @@ export async function loginAdmin(
   }
 
   const email = input.email.toLowerCase();
-  const [user] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.email, email))
-    .limit(1);
+  const supabase = getSupabaseClient();
 
-  // Bandingkan terhadap hash dummy agar timing stabil untuk email tak dikenal
-  const hash =
-    user?.passwordHash ??
-    '$2a$12$C6UzMDM.H6dfI/f/IKcEeO1qGmHVoNDZkKqmxqjHkbL2sFhZ.N6fi';
-  const ok = await bcrypt.compare(input.password, hash);
-  if (!user || !ok) {
+  // Login menggunakan Supabase Auth
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: input.password,
+  });
+
+  if (error || !data.user) {
     throw new Error('Email atau password salah');
   }
+
   clearLoginRateLimit(key);
 
+  // Ambil profil admin dari tabel admin_profiles
+  const [profile] = await db
+  .select()
+  .from(adminProfiles)
+  .where(eq(adminProfiles.userId, data.user.id))
+  .limit(1);
+
+  const name = profile?.name ?? data.user.user_metadata?.name ?? 'Admin';
+  const role = profile?.role ?? 'admin';
+
   const token = await new SignJWT({
-    sub: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
+    sub: data.user.id,
+    email: data.user.email ?? email,
+    name,
+    role,
   })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime(`${TTL_SECONDS}s`)
-    .sign(getSecret());
+  .setProtectedHeader({ alg: 'HS256' })
+  .setIssuedAt()
+  .setExpirationTime(`${TTL_SECONDS}s`)
+  .sign(getSecret());
 
   const store = await cookies();
   store.set(COOKIE, token, {
@@ -102,7 +126,12 @@ export async function loginAdmin(
     path: '/',
   });
 
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
+  return {
+    id: data.user.id,
+    email: data.user.email ?? email,
+    name,
+    role,
+  };
 }
 
 export async function logoutAdmin() {
@@ -143,77 +172,96 @@ export async function requireAdmin(): Promise<AdminIdentity> {
 // ============================================================
 
 /**
- * Perbarui nama & email admin yang sedang login.
- * Email dijamin unik; setelah berhasil, JWT cookie diperbarui agar
- * payload (nama/email) ikut terbarui.
+ * Perbarui nama & email admin.
  */
 export async function updateAdminProfile(
   admin: AdminIdentity,
   input: { name: string; email: string }
 ): Promise<{ ok: boolean; error?: string }> {
   const email = input.email.toLowerCase();
-  if (email !== admin.email) {
-    const [dup] = await db
-      .select({ id: adminUsers.id })
-      .from(adminUsers)
-      .where(eq(adminUsers.email, email))
-      .limit(1);
-    if (dup && dup.id !== admin.id) {
-      return { ok: false, error: 'Email sudah dipakai akun lain' };
+
+  try {
+    const supabaseAdmin = getSupabaseAdminClient();
+
+    // Update email di Supabase Auth jika berubah
+    if (email !== admin.email) {
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+        admin.id,
+        { email }
+      );
+      if (authError) {
+        return { ok: false, error: authError.message };
+      }
     }
-  }
 
-  await db
-    .update(adminUsers)
-    .set({ name: input.name, email })
-    .where(eq(adminUsers.id, admin.id));
+    // Update nama di admin_profiles (Drizzle)
+    await db
+    .update(adminProfiles)
+    .set({ name: input.name, updatedAt: new Date() })
+    .where(eq(adminProfiles.userId, admin.id));
 
-  // Refresh cookie JWT agar payload terbaru (nama/email) langsung aktif.
-  const token = await new SignJWT({
-    sub: admin.id,
-    email,
-    name: input.name,
-    role: admin.role,
-  })
+    // Refresh cookie JWT agar payload terbaru langsung aktif
+    const token = await new SignJWT({
+      sub: admin.id,
+      email,
+      name: input.name,
+      role: admin.role,
+    })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${TTL_SECONDS}s`)
     .sign(getSecret());
-  const store = await cookies();
-  store.set(COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: TTL_SECONDS,
-    path: '/',
-  });
 
-  return { ok: true };
+    const store = await cookies();
+    store.set(COOKIE, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: TTL_SECONDS,
+      path: '/',
+    });
+
+    return { ok: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Gagal memperbarui profil';
+    return { ok: false, error: message };
+  }
 }
 
 /**
- * Ganti password: verifikasi password lama dulu (bcrypt), lalu simpan
- * hash baru. Sesi tetap berlaku sampai kadaluarsa normal.
+ * Ganti password admin via Supabase Auth.
  */
 export async function changeAdminPassword(
   admin: AdminIdentity,
   input: { currentPassword: string; newPassword: string }
 ): Promise<{ ok: boolean; error?: string }> {
-  const [user] = await db
-    .select({ passwordHash: adminUsers.passwordHash })
-    .from(adminUsers)
-    .where(eq(adminUsers.id, admin.id))
-    .limit(1);
-  if (!user) return { ok: false, error: 'Akun tidak ditemukan' };
+  try {
+    const supabase = getSupabaseClient();
 
-  const ok = await bcrypt.compare(input.currentPassword, user.passwordHash);
-  if (!ok) return { ok: false, error: 'Password saat ini salah' };
+    // Verifikasi password lama dengan re-login
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: admin.email,
+      password: input.currentPassword,
+    });
 
-  const newHash = await bcrypt.hash(input.newPassword, 12);
-  await db
-    .update(adminUsers)
-    .set({ passwordHash: newHash })
-    .where(eq(adminUsers.id, admin.id));
+    if (verifyError) {
+      return { ok: false, error: 'Password saat ini salah' };
+    }
 
-  return { ok: true };
+    // Update password baru via Supabase Auth
+    const supabaseAdmin = getSupabaseAdminClient();
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      admin.id,
+      { password: input.newPassword }
+    );
+
+    if (updateError) {
+      return { ok: false, error: updateError.message };
+    }
+
+    return { ok: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Gagal mengubah password';
+    return { ok: false, error: message };
+  }
 }
