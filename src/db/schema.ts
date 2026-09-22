@@ -284,6 +284,10 @@ export const storeSettings = pgTable('store_settings', {
                                      qrisImagePath: text('qris_image_path'),
                                      qrisReceiverName: text('qris_receiver_name'),
                                      codEnabled: boolean('cod_enabled').default(true).notNull(),
+                                     // Bot WA: nomor perangkat pengirim (Fonnte dkk.) + saklar aktif.
+                                     // Nonaktif → notifikasi fallback ke kirim manual admin.
+                                     waBotNumber: text('wa_bot_number'),
+                                     waBotEnabled: boolean('wa_bot_enabled').default(false).notNull(),
                                      developerName: text('developer_name'),
                                      developerInfo: text('developer_info'),
                                      developerContact: text('developer_contact'),

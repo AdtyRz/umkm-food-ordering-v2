@@ -315,14 +315,21 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   });
 
   // 9. WhatsApp notification (best-effort, jangan blokir order)
+  // Sertakan customerToken agar pesan WA bisa mengingatkan customer
+  // menyimpan token (dipakai restore session & prefill pesanan berikutnya).
   try {
     const { notifyOrderStatus } = await import('./whatsapp');
+    const { getCustomerSessionRawToken } = await import('./customer-session');
+    // Token raw hanya ada di cookie session — hash DB tidak bisa
+    // di-reconstruct, jadi ambil langsung dari cookie (server-side).
+    const rawToken = await getCustomerSessionRawToken();
     await notifyOrderStatus({
       orderToken,
       status: 'pending',
       customerName: input.name,
       phone: input.phone,
       total,
+      customerToken: rawToken,
     });
   } catch (err) {
     console.error('[whatsapp] gagal kirim notifikasi:', err);
@@ -554,6 +561,9 @@ export async function getOrderByIdForAdmin(orderId: string): Promise<OrderWithDe
     .where(eq(orderStatusHistories.orderId, row.id))
     .orderBy(asc(orderStatusHistories.createdAt));
 
+  // Payment (admin perlu lihat bukti transfer & status verifikasi)
+  const [payment] = await db.select().from(payments).where(eq(payments.orderId, row.id)).limit(1);
+
   return {
     ...hydrated,
     histories: histories.map((h) => ({
@@ -563,10 +573,17 @@ export async function getOrderByIdForAdmin(orderId: string): Promise<OrderWithDe
       changedBy: h.changedBy,
       createdAt: h.createdAt.toISOString(),
     })),
+    payment: payment
+      ? {
+          method: payment.method,
+          status: payment.status,
+          reference: payment.reference,
+          proofPath: payment.proofPath,
+          verifiedAt: payment.verifiedAt ? payment.verifiedAt.toISOString() : null,
+        }
+      : null,
   };
 }
-
-/** Pesanan aktif terakhir dari session (untuk banner tracking). */
 export async function getActiveOrderBySession(sessionId: string) {
   const rows = await db
     .select()

@@ -94,6 +94,10 @@ body {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
@@ -115,6 +119,7 @@ body {
 
 .animate-fade-in { animation: fade-in 0.25s ease-out both; }
 .animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.animate-slide-in-left { animation: slide-in-left 0.28s cubic-bezier(0.32, 0.72, 0, 1) both; }
 .animate-scale-in { animation: scale-in 0.2s ease-out both; }
 .animate-pop { animation: pop 0.3s ease-in-out; }
 .animate-pulse-ring { animation: pulse-ring 2s infinite; }
@@ -134,8 +139,49 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* ---------- Leaflet: redam z-index ----------
+   Default Leaflet memakai z-index 400-1000 (pane, marker, popup, kontrol)
+   yang menembus navbar fixed (z-40) — map terlihat "di atas" navbar dan
+   membuat navbar tampak transparan saat halaman discroll (mis. halaman
+   Pengaturan). Panes diturunkan ke 1, kontrol ke 10, sehingga stacking
+   context halaman tetap menang. */
+.leaflet-pane { z-index: 1 !important; }
+.leaflet-top,
+.leaflet-bottom { z-index: 10 !important; }
+
+/* Hormati preferensi aksesibilitas: matikan semua animasi
+   bagi user yang memintanya — juga menghemat baterai. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Fokus aksesibel */
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* ---------- Tema warna (aksen) ----------
+   Dipilih customer/admin lewat pengaturan; tersimpan di localStorage
+   'umkm-accent' dan dipasang sebagai data-accent di <html> sebelum
+   paint (lihat inline script di layout.tsx). Cuma override variabel
+   CSS — tanpa JS runtime tambahan. */
+[data-accent='orange'] { --primary: #ea580c; --primary-foreground: #fff7ed; --primary-soft: #ffedd5; --secondary: #fed7aa; --secondary-foreground: #9a3412; }
+[data-accent='pink']   { --primary: #db2777; --primary-foreground: #fdf2f8; --primary-soft: #fce7f3; --secondary: #fbcfe8; --secondary-foreground: #9d174d; }
+[data-accent='green']  { --primary: #16a34a; --primary-foreground: #f0fdf4; --primary-soft: #dcfce7; --secondary: #bbf7d0; --secondary-foreground: #14532d; }
+[data-accent='blue']   { --primary: #2563eb; --primary-foreground: #eff6ff; --primary-soft: #dbeafe; --secondary: #bfdbfe; --secondary-foreground: #1e40af; }
+[data-accent='purple'] { --primary: #9333ea; --primary-foreground: #faf5ff; --primary-soft: #f3e8ff; --secondary: #e9d5ff; --secondary-foreground: #581c87; }
+[data-accent='teal']   { --primary: #0d9488; --primary-foreground: #f0fdfa; --primary-soft: #ccfbf1; --secondary: #99f6e4; --secondary-foreground: #134e4a; }
+
+.dark[data-accent='orange'] { --primary: #f97316; --primary-foreground: #431407; --primary-soft: #431407; --secondary: #431407; --secondary-foreground: #fdba74; }
+.dark[data-accent='pink']   { --primary: #f472b6; --primary-foreground: #500724; --primary-soft: #500724; --secondary: #831843; --secondary-foreground: #fbcfe8; }
+.dark[data-accent='green']  { --primary: #22c55e; --primary-foreground: #052e16; --primary-soft: #052e16; --secondary: #14532d; --secondary-foreground: #bbf7d0; }
+.dark[data-accent='blue']   { --primary: #3b82f6; --primary-foreground: #172554; --primary-soft: #172554; --secondary: #1e3a8a; --secondary-foreground: #bfdbfe; }
+.dark[data-accent='purple'] { --primary: #a855f7; --primary-foreground: #2e1065; --primary-soft: #2e1065; --secondary: #581c87; --secondary-foreground: #e9d5ff; }
+.dark[data-accent='teal']   { --primary: #2dd4bf; --primary-foreground: #042f2e; --primary-soft: #042f2e; --secondary: #134e4a; --secondary-foreground: #99f6e4; }

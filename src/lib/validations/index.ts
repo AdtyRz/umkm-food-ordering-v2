@@ -139,6 +139,7 @@ export type PromoInput = z.infer<typeof promoSchema>;
 // ============================================================
 export const storeSettingsSchema = z.object({
   storeName: z.string().trim().min(2, 'Nama toko minimal 2 karakter').max(120),
+  logoPath: z.string().trim().max(500).nullable().optional(),
   description: z.string().trim().max(1000).optional().or(z.literal('')),
   phone: z.string().trim().max(32).optional().or(z.literal('')),
   whatsapp: z.string().trim().max(32).optional().or(z.literal('')),
@@ -172,7 +173,29 @@ export const storeStatusModeSchema = z.object({
 
 export const paymentSettingsSchema = z.object({
   qrisReceiverName: z.string().trim().max(120).optional().or(z.literal('')),
+  qrisImagePath: z.string().trim().max(500).nullable().optional(),
   codEnabled: z.boolean().default(true),
+});
+
+export const waBotSettingsSchema = z.object({
+  /** Nomor perangkat bot, format +62 / 62 / 08 — dinormalisasi ke 62. */
+  waBotNumber: z
+    .string()
+    .trim()
+    .regex(/^(\+62|62|0)8[0-9]{7,13}$/, 'Nomor bot tidak valid (contoh: 081234567890)')
+    .nullable()
+    .optional()
+    .or(z.literal('')),
+  waBotEnabled: z.boolean().default(false),
+}).refine((d) => !d.waBotEnabled || (d.waBotNumber && d.waBotNumber.length > 0), {
+  message: 'Isi nomor bot dulu sebelum mengaktifkan bot',
+  path: ['waBotNumber'],
+});
+
+export const sendNotificationSchema = z.object({
+  orderId: z.string().uuid(),
+  /** Pesan khusus dari admin (opsional — dipakai bila ada). */
+  message: z.string().trim().max(1000).optional(),
 });
 
 // ============================================================

@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2 } from 'lucide-react';
-import { Button, Card, Input, Label, useToast } from '@/components/ui';
+import { CheckCircle2, Send } from 'lucide-react';
+import { Button, Card, Input, Label, Textarea, useToast } from '@/components/ui';
 import { OrderStatusBadge } from '@/components/domain/order-status-badge';
 import { updateOrderStatusAction, updatePaymentStatusAction } from '../../../actions';
+import { sendOrderNotificationAction } from '../../../order-notify';
 import { ORDER_STATUS_LABELS } from '@/constants';
 import type { OrderStatus, PaymentMethod, PaymentStatus } from '@/types';
 
@@ -33,16 +34,23 @@ export function OrderDetailActions({
   orderStatus,
   paymentStatus,
   paymentMethod,
+  customerPhone,
+  waBotEnabled,
 }: {
   orderId: string;
   orderStatus: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
+  customerPhone: string | null;
+  waBotEnabled: boolean;
 }) {
   const router = useRouter();
   const { push } = useToast();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState('');
+  const [customMsg, setCustomMsg] = useState('');
+  const [notifyPending, startNotify] = useTransition();
+  const [showNotify, setShowNotify] = useState(false);
 
   const nextStatuses = TRANSITIONS[orderStatus];
   const canChangeStatus = nextStatuses.length > 0;
@@ -69,6 +77,24 @@ export function OrderDetailActions({
       const res = await updatePaymentStatusAction({ orderId, status: next });
       if (res.ok) {
         push('Status pembayaran diperbarui', 'success');
+        router.refresh();
+      } else {
+        push(res.error ?? 'Gagal', 'error');
+      }
+    });
+  };
+
+  // ---- Kirim pemberitahuan manual (utamanya saat bot WA nonaktif) ----
+  const sendNotification = () => {
+    startNotify(async () => {
+      const res = await sendOrderNotificationAction({
+        orderId,
+        message: customMsg.trim() || undefined,
+      });
+      if (res.ok) {
+        push(`Pemberitahuan terkirim ke ${res.sentTo} (${res.provider})`, 'success');
+        setCustomMsg('');
+        setShowNotify(false);
         router.refresh();
       } else {
         push(res.error ?? 'Gagal', 'error');
@@ -127,6 +153,60 @@ export function OrderDetailActions({
         {paymentMethod === 'qris' && paymentStatus === 'waiting_verification' && (
           <p className="rounded-xl bg-warning-soft p-2.5 text-xs text-warning">
             Customer sudah scan QRIS? Verifikasi manual: cek mutasi rekening/ewallet, lalu tekan Dibayar.
+          </p>
+        )}
+      </div>
+
+      {/* ---------- Pemberitahuan manual ---------- */}
+      <div className="space-y-2 border-t border-border pt-4">
+        <div className="flex items-center justify-between gap-2">
+          <Label>
+            Pemberitahuan WA {customerPhone ? `ke +${customerPhone.replace(/^(\+62|62|0)/, '62')}` : ''}
+          </Label>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              waBotEnabled ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {waBotEnabled ? 'BOT AKTIF' : 'BOT MATI'}
+          </span>
+        </div>
+        {!waBotEnabled && (
+          <p className="text-xs text-muted-foreground">
+            Bot nonaktif — notifikasi otomatis tidak terkirim. Kirim pemberitahuan manual di sini.
+          </p>
+        )}
+        {showNotify ? (
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Pesan khusus (opsional — kosongkan untuk template otomatis sesuai status)"
+              value={customMsg}
+              onChange={(e) => setCustomMsg(e.target.value)}
+              maxLength={1000}
+              className="min-h-20"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" loading={notifyPending} disabled={!customerPhone} onClick={sendNotification}>
+                <Send className="h-3.5 w-3.5" /> Kirim Sekarang
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowNotify(false)}>
+                Batal
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!customerPhone}
+            onClick={() => setShowNotify(true)}
+          >
+            <Send className="h-3.5 w-3.5" /> Kirim Pemberitahuan
+          </Button>
+        )}
+        {!customerPhone && (
+          <p className="text-xs text-muted-foreground">
+            Customer tidak mencantumkan nomor HP.
           </p>
         )}
       </div>

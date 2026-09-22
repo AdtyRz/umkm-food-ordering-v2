@@ -212,6 +212,100 @@ export function computeStoreOpenStatus(
 }
 
 // ============================================================
+// PENGUMUMAN BUKA/TUTUP (auto-caption medsos/WA)
+// ============================================================
+export type AnnouncementInput = {
+  storeName: string;
+  isOpen: boolean;
+  todayHours?: { openTime: string; closeTime: string; isClosed: boolean } | null;
+  menuUrl?: string;
+};
+
+/**
+ * Teks siap-posting untuk status medsos/WA. Selalu panggil dengan data
+ * status toko TERKINI saat tombol ditekan — jangan cache hasilnya.
+ */
+export function buildAnnouncementText({
+  storeName,
+  isOpen,
+  todayHours,
+  menuUrl = '/menu',
+}: AnnouncementInput): string {
+  const name = storeName.trim() || 'Toko kami';
+  const link = `Menu lengkap + stok realtime: ${menuUrl}`;
+  const hhmm = (t: string) => t.slice(0, 5);
+
+  if (isOpen) {
+    if (todayHours && !todayHours.isClosed) {
+      return `${name} BUKA sampai ${hhmm(todayHours.closeTime)} hari ini! ${link}`;
+    }
+    return `${name} BUKA sekarang! ${link}`;
+  }
+  if (todayHours && !todayHours.isClosed) {
+    return `${name} sedang tutup. Buka lagi hari ini pukul ${hhmm(todayHours.openTime)}. ${link}`;
+  }
+  return `${name} sedang tutup hari ini. Sampai jumpa lagi! ${link}`;
+}
+
+export type BroadcastProduct = { name: string; price: number };
+
+/**
+ * Daftar produk tersedia hari ini dalam teks rapi untuk status WA/grup.
+ * `products` harus sudah terfilter tersedia & stok tidak habis.
+ */
+export function buildBroadcastText(
+  storeName: string,
+  isOpen: boolean,
+  products: BroadcastProduct[]
+): string {
+  const name = storeName.trim() || 'Toko kami';
+  const lines: string[] = [];
+  lines.push(`*${name}*`);
+  lines.push(isOpen ? '✅ BUKA sekarang!' : '⛔ Sedang tutup');
+  lines.push('');
+  lines.push('/menu — Menu lengkap + stok realtime');
+  lines.push('');
+  lines.push('✨ Menu tersedia hari ini:');
+  if (products.length === 0) {
+    lines.push('— Lihat /menu untuk info selanjutnya —');
+  } else {
+    for (const p of products) {
+      lines.push(`${p.name} — ${formatRupiah(p.price)}`);
+    }
+  }
+  lines.push('');
+  lines.push('Pesan tanpa login, cukup token: /menu');
+  return lines.join('\n');
+}
+
+/**
+ * Pesan konfirmasi untuk customer setelah menekan "Sudah Bayar" / mengirim
+ * bukti transfer QRIS. Memberi arahan langkah berikutnya (verifikasi manual).
+ */
+export function paymentConfirmationMessage(
+  context: {
+    customerName?: string | null;
+    orderToken: string;
+    total: number;
+  }
+): string {
+  const name = context.customerName || 'Kak';
+  return [
+    `Halo ${name},`,
+    '',
+    `Konfirmasi pembayaran untuk pesanan *${context.orderToken}* sudah kami terima.`,
+    `Total: ${formatRupiah(context.total)}`,
+    '',
+    '📌 Langkah selanjutnya:',
+    '1. Admin akan cek mutasi rekening/e-wallet kami.',
+    '2. Setelah cocok, status pembayaran jadi Dibayar & pesanan langsung diproses.',
+    '3. Pantau statusnya di halaman pesanan — tidak perlu chat dulu.',
+    '',
+    '⏳ Verifikasi manual biasanya cepat. Terima kasih!',
+  ].join('\n');
+}
+
+// ============================================================
 // ORDER STATUS HELPERS
 // ============================================================
 export function isOrderTerminal(status: OrderStatus): boolean {
@@ -244,25 +338,41 @@ export function statusNotificationMessage(
   const name = context.customerName || 'Kak';
   lines.push(`Halo ${name},`);
   lines.push('');
-  lines.push(`Pesanan kamu ${context.orderToken}`);
+  lines.push(`Pesanan kamu *${context.orderToken}*`);
   const statusText = ORDER_STATUS_LABELS[status];
   if (status === 'pending') lines.push('telah kami terima dan sedang menunggu persetujuan.');
   else if (status === 'approved') lines.push('telah disetujui dan akan segera diproses.');
   else if (status === 'processing') lines.push('saat ini sedang diproses.');
   else if (status === 'ready') lines.push('sudah siap! Silakan diambil / diantar.');
   else if (status === 'delivering') lines.push('sedang diantar ke lokasimu.');
-  else if (status === 'completed') lines.push('telah selesai. Terima kasih sudah memesan! 🙏');
+  else if (status === 'completed') lines.push('telah selesai. Terima kasih sudah memesan!');
   else if (status === 'rejected') lines.push('sayangnya ditolak. Silakan hubungi kami untuk info lebih lanjut.');
   else if (status === 'cancelled') lines.push('telah dibatalkan.');
 
   lines.push('');
-  lines.push('Status:');
-  lines.push(statusText);
-  lines.push('');
+  lines.push(`Status: ${statusText}`);
   lines.push(`Total: ${formatRupiah(context.total)}`);
-  if (context.customerToken) {
+
+  // Arahan/praktis per status — customer tahu harus apa selanjutnya
+  if (status === 'pending') {
     lines.push('');
-    lines.push(`Token: ${context.customerToken}`);
+    lines.push('📌 Pantau status pesanan di halaman pesanan — tidak perlu chat kami dulu.');
+  } else if (status === 'approved') {
+    lines.push('');
+    if (context.customerToken) {
+      lines.push('📌 Simpan token kamu agar bisa buka halaman pesanan kapan saja:');
+      lines.push(`*${context.customerToken}*`);
+      lines.push('Simpan pesan ini — token dipakai juga untuk pesan berikutnya tanpa isi nama & No. HP lagi.');
+    } else {
+      lines.push('📌 Simpan token pesananmu sampai pesanan selesai.');
+    }
+  } else if (status === 'completed') {
+    lines.push('');
+    lines.push('Terima kasih sudah memesan — sampai jumpa di pesanan berikutnya! 🙏');
+  } else if (status === 'rejected') {
+    lines.push('');
+    lines.push('📌 Jika pembayaran sudah dibuat, akan kami kembalikan. Hubungi kami untuk bantuan.');
   }
+
   return lines.join('\n');
 }

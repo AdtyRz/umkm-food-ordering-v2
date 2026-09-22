@@ -150,6 +150,43 @@ export async function getCustomerSession(): Promise<CustomerSessionData | null> 
   return validateCustomerSessionByToken(token);
 }
 
+/**
+ * Baca data session berdasar sessionId (server internal — TIDAK mengembalikan
+ * token raw ke client; dipakai untuk menyertakan token di pesan WA).
+ */
+export async function getCustomerSessionData(
+  sessionId: string
+): Promise<{ sessionId: string; customerId: string; customerToken: string | null } | null> {
+  const [row] = await db
+    .select({
+      sessionId: customerSessions.sessionId,
+      customerId: customerSessions.customerId,
+      customerTokenHash: customerSessions.customerTokenHash,
+    })
+    .from(customerSessions)
+    .where(eq(customerSessions.sessionId, sessionId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    sessionId: row.sessionId,
+    customerId: row.customerId,
+    // Token raw TIDAK bisa di-reconstruct dari hash — kembalikan null di sini.
+    // Pemanggil seharusnya sudah punya token raw dari cookie / input.
+    customerToken: null,
+  };
+}
+
+/**
+ * Baca token RAW customer dari cookie session saat ini (server-side only).
+ * Dipakai untuk menyertakan token di pesan WA — hash DB tidak bisa
+ * di-reconstruct, jadi satu-satunya sumber token raw adalah cookie.
+ */
+export async function getCustomerSessionRawToken(): Promise<string | null> {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  return token && isValidCustomerTokenFormat(token) ? token.trim().toUpperCase() : null;
+}
+
 /** Perbarui last_activity_at session (dipanggil saat aktivitas penting). */
 export async function touchSession(sessionId: string) {
   await db

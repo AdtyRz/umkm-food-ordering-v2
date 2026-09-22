@@ -28,6 +28,25 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      // Upload bukti transfer & foto produk lewat Server Action (FormData).
+      // Default 1MB terlalu kecil — file validasi kita sampai 2MB, ditambah
+      // overhead multipart/form-data (boundary + part headers ~10-20KB).
+      bodySizeLimit: "3mb",
+    },
+  },
+  images: {
+    localPatterns: [
+      {
+        // Wajib di Next 16: semua gambar internal diambil lewat route
+        // /api/images?path=... (query dinamis). Properti `search`
+        // sengaja dihilangkan agar semua nilai query diizinkan — aman
+        // karena route /api/images memvalidasi path di server.
+        pathname: "/api/images",
+      },
+    ],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

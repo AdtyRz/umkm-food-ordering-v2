@@ -295,11 +295,11 @@ export function Modal({
   const maxWidth = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-overlay animate-fade-in" onClick={onClose} />
       <div
         className={cn(
-          'relative w-full rounded-t-3xl bg-card p-5 shadow-2xl sm:rounded-3xl animate-slide-up',
+          'relative max-h-[85dvh] w-full overflow-y-auto rounded-3xl bg-card p-5 shadow-2xl animate-scale-in',
           maxWidth
         )}
       >
@@ -313,7 +313,7 @@ export function Modal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto">{children}</div>
+        <div>{children}</div>
       </div>
     </div>
   );

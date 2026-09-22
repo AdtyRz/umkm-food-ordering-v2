@@ -20,7 +20,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navigasi utama"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card shadow-[0_-4px_16px_rgba(0,0,0,0.08)]"
     >
       <div className="mx-auto grid max-w-lg grid-cols-4">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -32,7 +32,7 @@ export function BottomNav() {
               href={href}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors',
+                'relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-all active:scale-90',
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               )}
             >

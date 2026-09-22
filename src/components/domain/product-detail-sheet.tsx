@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { UtensilsCrossed } from 'lucide-react';
 import { BottomSheet, Button, QuantityStepper, useToast } from '@/components/ui';
 import { StockBadge } from './stock-badge';
 import { useCart } from '@/hooks/use-cart';
@@ -61,8 +62,8 @@ export function ProductDetailSheet({
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-6xl" aria-hidden>
-              🍜
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground/60" aria-hidden>
+              <UtensilsCrossed className="h-14 w-14" />
             </div>
           )}
         </div>

@@ -1,13 +1,19 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Banknote, QrCode, Tag, X } from 'lucide-react';
+import { Banknote, QrCode, ShoppingBag, Tag, X } from 'lucide-react';
 import { Button, Card, EmptyState, FieldError, Input, Label, Textarea, useToast } from '@/components/ui';
 import { useCart } from '@/hooks/use-cart';
-import { createOrderAction, validatePromoAction } from '@/app/actions/checkout';
+import {
+  createOrderAction,
+  getCustomerProfileAction,
+  getQrisPaymentInfoAction,
+  validatePromoAction,
+} from '@/app/actions/checkout';
+import { QrisPayModal } from './qris-pay-modal';
 import { formatRupiah } from '@/utils';
 import type { PaymentMethod } from '@/types';
 
@@ -29,6 +35,32 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Popup QRIS pasca-order (metode QRIS)
+  const [qrisOrder, setQrisOrder] = useState<{
+    orderToken: string;
+    total: number;
+  } | null>(null);
+  const [qrisInfo, setQrisInfo] = useState<{
+    qrisImagePath: string | null;
+    qrisReceiverName: string | null;
+  } | null>(null);
+
+  // Prefill nama & No. HP dari pesanan pertama customer (masih bisa diedit)
+  // + preload info QRIS sekalian (dipakai popup setelah order dibuat).
+  useEffect(() => {
+    let cancelled = false;
+    getCustomerProfileAction().then((res) => {
+      if (cancelled) return;
+      if (res.name) setName(res.name);
+      if (res.phone) setPhone(res.phone);
+    });
+    getQrisPaymentInfoAction().then((info) => {
+      if (!cancelled) setQrisInfo(info);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const discount = promo?.discount ?? 0;
   const total = Math.max(0, subtotal - discount);
@@ -79,7 +111,17 @@ export default function CheckoutPage() {
 
       if (res.ok) {
         clearCart();
-        router.push(`/orders/${res.orderToken}?baru=1`);
+        if (paymentMethod === 'qris') {
+          // Popup QRIS: JANGAN redirect — customer wajib bayar & kirim bukti dulu.
+          // Info QR sudah di-preload saat mount; refetch best-effort jika kosong.
+          if (!qrisInfo) {
+            const info = await getQrisPaymentInfoAction();
+            setQrisInfo(info);
+          }
+          setQrisOrder({ orderToken: res.orderToken, total: Math.max(0, subtotal - (promo?.discount ?? 0)) });
+        } else {
+          router.push(`/orders/${res.orderToken}?baru=1`);
+        }
       } else {
         setError(res.error);
         push(res.error, 'error');
@@ -89,11 +131,13 @@ export default function CheckoutPage() {
 
   if (!ready) return null;
 
-  if (items.length === 0) {
+  // Saat popup QRIS aktif, keranjang sengaja sudah dikosongkan — jangan
+  // jatuh ke layar "Keranjang kosong" sebelum modal sempat tampil.
+  if (items.length === 0 && !qrisOrder) {
     return (
       <div className="pt-8">
         <EmptyState
-          icon={<span className="text-2xl" aria-hidden>🛒</span>}
+          icon={<ShoppingBag className="h-7 w-7" />}
           title="Keranjang kosong"
           description="Tambahkan produk dulu sebelum checkout."
           action={
@@ -259,6 +303,19 @@ export default function CheckoutPage() {
           {submitting ? 'Memproses...' : `Buat Pesanan — ${formatRupiah(total)}`}
         </Button>
       </form>
+
+      {/* Popup QRIS — center mengambang, muncul setelah order QRIS dibuat.
+          onPaid: refresh router agar status waiting_verification langsung terlihat. */}
+      {qrisOrder && (
+        <QrisPayModal
+          open
+          onClose={() => router.push(`/orders/${qrisOrder.orderToken}`)}
+          orderToken={qrisOrder.orderToken}
+          total={qrisOrder.total}
+          qrisImagePath={qrisInfo?.qrisImagePath ?? null}
+          qrisReceiverName={qrisInfo?.qrisReceiverName ?? null}
+        />
+      )}
     </div>
   );
 }

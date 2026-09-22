@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShoppingBag, Trash2 } from 'lucide-react';
+import { ShoppingBag, Trash2, UtensilsCrossed } from 'lucide-react';
 import { Button, Card, EmptyState, QuantityStepper, useToast } from '@/components/ui';
 import { useCart } from '@/hooks/use-cart';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -76,7 +76,9 @@ export default function CartPage() {
                     className="object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-2xl" aria-hidden>🍜</div>
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground/60" aria-hidden>
+                    <UtensilsCrossed className="h-6 w-6" />
+                  </div>
                 )}
               </div>
               <div className="flex min-w-0 flex-1 flex-col">

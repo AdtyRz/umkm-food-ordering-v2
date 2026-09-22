@@ -1,7 +1,7 @@
 {
-  "name": "umkm-food-ordering",
-  "version": "0.1.0",
-  "private": true,
+  "name": "kedai-rasa",
+  "version": "0.2.0",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Inbox } from 'lucide-react';
 import { getOrdersForAdmin } from '@/services/order';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/domain/order-status-badge';
 import { Card, EmptyState } from '@/components/ui';
@@ -61,7 +62,7 @@ export default async function AdminOrdersPage({
 
       {orders.length === 0 ? (
         <EmptyState
-          icon={<span className="text-2xl" aria-hidden>📭</span>}
+          icon={<Inbox className="h-7 w-7" />}
           title="Tidak ada pesanan"
           description="Belum ada pesanan pada filter ini."
         />

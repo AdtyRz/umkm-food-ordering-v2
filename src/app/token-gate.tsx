@@ -1,33 +1,30 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Copy, KeyRound, Sparkles } from 'lucide-react';
-import { Button, Input, useToast } from '@/components/ui';
+import { KeyRound, Sparkles } from 'lucide-react';
+import { Button, Input } from '@/components/ui';
 import { createSessionAction, restoreSessionAction } from '@/app/actions/session';
+import logo from '@/logo/logo.png';
 
 export function TokenGate() {
   const router = useRouter();
-  const { push } = useToast();
-  const [mode, setMode] = useState<'new' | 'restore' | 'show'>('new');
-  const [token, setToken] = useState<string | null>(null);
+  const [mode, setMode] = useState<'new' | 'restore'>('new');
   const [inputToken, setInputToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [creating, setCreating] = useState(false);
 
+  // Sukses → server action me-redirect ke /token-baru (halaman yang
+  // menampilkan token + tombol salin). Gagal → tampilkan error di sini.
   const handleCreate = () => {
     setCreating(true);
     setError(null);
     startTransition(async () => {
       const res = await createSessionAction();
       setCreating(false);
-      if (res.ok) {
-        setToken(res.token);
-        setMode('show');
-      } else {
-        setError(res.error);
-      }
+      if (!res.ok) setError(res.error);
     });
   };
 
@@ -44,55 +41,18 @@ export function TokenGate() {
     });
   };
 
-  const handleCopy = async () => {
-    if (!token) return;
-    try {
-      await navigator.clipboard.writeText(token);
-      push('Token disalin!', 'success');
-    } catch {
-      push('Gagal menyalin. Salin manual ya.', 'error');
-    }
-  };
-
-  const handleContinue = () => router.push('/menu');
-
-  // ---------- TAMPILAN TOKEN BARU ----------
-  if (mode === 'show' && token) {
-    return (
-      <main className="flex min-h-dvh flex-col items-center justify-center px-4">
-        <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 text-center shadow-lg animate-scale-in">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-soft text-3xl" aria-hidden>
-            🎫
-          </div>
-          <h1 className="text-xl font-extrabold">Token Kamu</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Simpan token ini untuk melihat pesanan kamu di lain waktu.
-          </p>
-          <div className="my-5 rounded-2xl border-2 border-dashed border-primary/40 bg-primary-soft/50 px-4 py-4">
-            <p className="font-mono text-2xl font-bold tracking-widest text-primary select-all">
-              {token}
-            </p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button onClick={handleCopy} variant="secondary">
-              <Copy className="h-4 w-4" /> Salin Token
-            </Button>
-            <Button onClick={handleContinue}>
-              Lanjutkan <Sparkles className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   // ---------- TAMPILAN AWAL ----------
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <div className="mb-8 text-center animate-fade-in">
-        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary text-4xl shadow-lg shadow-orange-500/30" aria-hidden>
-          🍜
-        </div>
+        <Image
+          src={logo}
+          alt="Logo Kedai Rasa"
+          width={80}
+          height={80}
+          priority
+          className="mx-auto mb-4 h-20 w-20 rounded-3xl object-cover shadow-lg shadow-orange-500/30"
+        />
         <h1 className="text-3xl font-extrabold tracking-tight">Kedai Rasa</h1>
         <p className="mt-2 max-w-xs text-sm text-muted-foreground">
           Pesan makanan favoritmu <b>tanpa daftar akun</b> — cukup pakai token!

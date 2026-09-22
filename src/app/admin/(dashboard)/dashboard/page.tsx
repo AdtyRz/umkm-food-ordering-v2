@@ -115,7 +115,7 @@ export default async function AdminDashboardPage() {
         </div>
         {pendingOrders.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            Tidak ada pesanan menunggu. 🎉
+            Tidak ada pesanan menunggu.
           </p>
         ) : (
           <div className="space-y-2">

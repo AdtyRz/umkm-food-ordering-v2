@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { UtensilsCrossed } from 'lucide-react';
 import { StockBadge } from './stock-badge';
 import { cn } from '@/lib/utils';
 import { formatRupiah } from '@/utils';
@@ -36,8 +37,8 @@ export function ProductCard({
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl" aria-hidden>
-            🍜
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground/60" aria-hidden>
+            <UtensilsCrossed className="h-8 w-8" />
           </div>
         )}
         {soldOut && (

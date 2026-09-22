@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClipboardList } from 'lucide-react';
 import { getCustomerSession } from '@/services/customer-session';
 import { getOrdersBySession } from '@/services/order';
 import { OrderStatusBadge } from '@/components/domain/order-status-badge';
@@ -16,7 +17,7 @@ export default async function OrdersPage() {
     return (
       <div className="pt-8">
         <EmptyState
-          icon={<span className="text-2xl" aria-hidden>📋</span>}
+          icon={<ClipboardList className="h-7 w-7" />}
           title="Belum ada pesanan"
           description="Pesanan yang kamu buat akan tampil di sini."
           action={

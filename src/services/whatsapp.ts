@@ -74,6 +74,32 @@ function getProvider(): WhatsAppProvider {
   return new WhatsAppMockProvider();
 }
 
+/** Provider aktif — diekspos agar action lain bisa kirim pesan non-status. */
+export function getWhatsAppProvider(): WhatsAppProvider {
+  return getProvider();
+}
+
+/**
+ * Kirim pesan BEBAS (bukan notifikasi status) ke nomor tujuan format +62.
+ * Dipakai fitur "kirim pemberitahuan manual" admin saat bot nonaktif.
+ * Best-effort: error tidak pernah melempar.
+ */
+export async function sendWhatsAppMessage(
+  to: string,
+  message: string
+): Promise<{ ok: boolean; error?: string; provider: string }> {
+  const normalized = to.replace(/^(\+62|62|0)/, '62').replace(/\D/g, '');
+  if (!normalized || normalized.length < 10) {
+    return { ok: false, error: 'Nomor tujuan tidak valid.', provider: '-' };
+  }
+  const provider = getProvider();
+  const result = await provider.send(normalized, message);
+  if (!result.ok) {
+    console.error(`[whatsapp:${provider.name}] gagal kirim manual: ${result.error}`);
+  }
+  return { ...result, provider: provider.name };
+}
+
 // ============================================================
 // PUBLIC API
 // ============================================================
@@ -83,16 +109,32 @@ export type NotifyStatusInput = {
   customerName: string | null;
   phone: string | null;
   total: number;
+  /** Token customer — disertakan di pesan WA sebagai pengingat simpan token. */
+  customerToken?: string | null;
 };
 
 /**
  * Kirim notifikasi perubahan status. Best-effort: error tidak pernah
  * melempar ke caller (order tidak boleh gagal karena notifikasi).
+ *
+ * Bot-aware: bila admin menonaktifkan bot WA di panel Toko, notifikasi
+ * otomatis DILEWATI (dikembalikan status 'bot_disabled') — admin lalu
+ * memakai tombol "Kirim Pemberitahuan" (kirim manual) di halaman pesanan.
  */
-export async function notifyOrderStatus(input: NotifyStatusInput): Promise<void> {
+export async function notifyOrderStatus(input: NotifyStatusInput): Promise<{
+  ok: boolean;
+  skipped?: 'bot_disabled' | 'no_phone';
+}> {
+  const { getWhatsAppConfig } = await import('./store');
+  const config = await getWhatsAppConfig();
+  if (!config.botEnabled) {
+    console.info('[whatsapp] bot nonaktif — notifikasi otomatis dilewati (pakai kirim manual)');
+    return { ok: false, skipped: 'bot_disabled' };
+  }
+
   if (!input.phone) {
     console.warn('[whatsapp] nomor customer kosong, notifikasi dilewati');
-    return;
+    return { ok: false, skipped: 'no_phone' };
   }
 
   // Normalisasi ke format internasional tanpa '+'
@@ -102,6 +144,7 @@ export async function notifyOrderStatus(input: NotifyStatusInput): Promise<void>
     customerName: input.customerName,
     orderToken: input.orderToken,
     total: input.total,
+    customerToken: input.customerToken ?? null,
   });
 
   const provider = getProvider();
@@ -109,6 +152,7 @@ export async function notifyOrderStatus(input: NotifyStatusInput): Promise<void>
   if (!result.ok) {
     console.error(`[whatsapp:${provider.name}] gagal: ${result.error}`);
   }
+  return { ok: result.ok };
 }
 
 /** Pesan untuk notifikasi status (diekspos untuk testing). */
@@ -117,6 +161,7 @@ export function buildStatusMessage(input: NotifyStatusInput): string {
     customerName: input.customerName,
     orderToken: input.orderToken,
     total: input.total,
+    customerToken: input.customerToken ?? null,
   });
 }
 

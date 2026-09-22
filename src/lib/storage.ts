@@ -19,7 +19,7 @@ const EXT_BY_MIME: Record<string, string> = {
 /** Simpan file → return path relatif, mis. "products/ab12-....jpg". */
 export async function saveUploadedImage(
   file: File,
-  folder: 'products' | 'store' | 'qris'
+  folder: 'products' | 'store' | 'qris' | 'proofs'
 ): Promise<string> {
   const ext = EXT_BY_MIME[file.type] ?? 'bin';
   const filename = `${randomUUID()}.${ext}`;

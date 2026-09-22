@@ -379,6 +379,7 @@ export async function deletePromoAction(id: string): Promise<ActionResult> {
 // ============================================================
 export async function saveStoreSettingsAction(input: {
   storeName: string;
+  logoPath: string | null;
   description: string;
   phone: string;
   whatsapp: string;
@@ -400,6 +401,7 @@ export async function saveStoreSettingsAction(input: {
     const d = parsed.data;
     await updateStoreSettings({
       storeName: d.storeName,
+      logoPath: d.logoPath || null,
       description: d.description || null,
       phone: d.phone || null,
       whatsapp: d.whatsapp?.replace(/^(\+62|62|0)/, '62').replace(/\D/g, '') || null,
@@ -438,6 +440,53 @@ export async function saveOperatingHoursAction(input: {
   } catch {
     return { ok: false, error: 'Gagal menyimpan jam operasional.' };
   }
+}/**
+ * Teks pengumuman & payload WA siap-posting. Data diambil ulang dari DB
+ * saat tombol ditekan, jadi caption tidak pernah basi.
+ */
+export async function getAnnouncementAction(): Promise<
+  | { ok: true; caption: string; broadcast: string }
+  | { ok: false; error: string }
+> {
+  try {
+    await requireAdmin();
+    const [
+      { getStoreInfo, getOperatingHours, getStoreOpenStatus },
+      { getAvailableProducts },
+      { buildAnnouncementText, buildBroadcastText },
+    ] = await Promise.all([
+      import('@/services/store'),
+      import('@/services/catalog'),
+      import('@/utils'),
+    ]);
+
+    const [store, openStatus, products] = await Promise.all([
+      getStoreInfo(),
+      getStoreOpenStatus(),
+      getAvailableProducts(),
+    ]);
+    if (!store || !openStatus) {
+      return { ok: false, error: 'Pengaturan toko belum ada.' };
+    }
+
+    // Caption buka/tutup (fitur #1)
+    const caption = buildAnnouncementText({
+      storeName: store.storeName,
+      isOpen: openStatus.isOpen,
+      todayHours: openStatus.todayHours,
+    });
+
+    // Payload WA: hanya produk yang pasti bisa dipesan sekarang
+    const orderable = products
+      .filter((p) => p.isAvailable && p.stockStatus !== 'out')
+      .map((p) => ({ name: p.name, price: p.price }));
+    const broadcast = buildBroadcastText(store.storeName, openStatus.isOpen, orderable);
+
+    return { ok: true, caption, broadcast };
+  } catch (err) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED') return { ok: false, error: 'Sesi berakhir. Login ulang.' };
+    return { ok: false, error: 'Gagal membuat pengumuman.' };
+  }
 }
 
 export async function setStoreStatusModeAction(input: {
@@ -460,6 +509,7 @@ export async function setStoreStatusModeAction(input: {
 
 export async function savePaymentSettingsAction(input: {
   qrisReceiverName: string;
+  qrisImagePath: string | null;
   codEnabled: boolean;
 }): Promise<ActionResult> {
   try {
@@ -476,6 +526,7 @@ export async function savePaymentSettingsAction(input: {
       .update(storeSettings)
       .set({
         qrisReceiverName: parsed.data.qrisReceiverName || null,
+        qrisImagePath: parsed.data.qrisImagePath || null,
         codEnabled: parsed.data.codEnabled,
       })
       .where(eq(storeSettings.id, 1));
@@ -485,6 +536,42 @@ export async function savePaymentSettingsAction(input: {
   } catch (err) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') return { ok: false, error: 'Sesi berakhir. Login ulang.' };
     return { ok: false, error: 'Gagal menyimpan pengaturan pembayaran.' };
+  }
+}
+
+// ============================================================
+// BOT WHATSAPP (nomor perangkat + saklar aktif)
+// ============================================================
+export async function saveWhatsAppBotSettingsAction(input: {
+  waBotNumber: string;
+  waBotEnabled: boolean;
+}): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const { waBotSettingsSchema } = await import('@/lib/validations');
+    const parsed = waBotSettingsSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? 'Data tidak valid' };
+    }
+    const d = parsed.data;
+    const { db } = await import('@/db');
+    const { storeSettings } = await import('@/db/schema');
+    const { eq } = await import('drizzle-orm');
+    await db
+      .update(storeSettings)
+      .set({
+        // Normalisasi ke format internasional tanpa '+' (62xxx)
+        waBotNumber: d.waBotNumber
+          ? d.waBotNumber.replace(/^(\+62|62|0)/, '62').replace(/\D/g, '')
+          : null,
+        waBotEnabled: d.waBotEnabled,
+      })
+      .where(eq(storeSettings.id, 1));
+    revalidatePath('/admin/store');
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED') return { ok: false, error: 'Sesi berakhir. Login ulang.' };
+    return { ok: false, error: 'Gagal menyimpan pengaturan bot WA.' };
   }
 }
 

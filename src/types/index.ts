@@ -118,6 +118,9 @@ export type StoreInfo = {
   qrisImagePath: string | null;
   qrisReceiverName: string | null;
   codEnabled: boolean;
+  /** Bot WA: nomor perangkat pengirim + saklar aktif (fallback: kirim manual). */
+  waBotNumber: string | null;
+  waBotEnabled: boolean;
   developerName: string | null;
   developerInfo: string | null;
   developerContact: string | null;

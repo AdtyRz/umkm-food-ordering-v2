@@ -29,9 +29,27 @@ export async function getStoreInfo(): Promise<StoreInfo | null> {
     qrisImagePath: row.qrisImagePath,
     qrisReceiverName: row.qrisReceiverName,
     codEnabled: row.codEnabled,
+    waBotNumber: row.waBotNumber,
+    waBotEnabled: row.waBotEnabled,
     developerName: row.developerName,
     developerInfo: row.developerInfo,
     developerContact: row.developerContact,
+  };
+}
+
+/** Konfigurasi bot WA (dipakai whatsapp service & panel admin). */
+export async function getWhatsAppConfig(): Promise<{
+  botNumber: string | null;
+  botEnabled: boolean;
+}> {
+  const [row] = await db
+    .select({ botNumber: storeSettings.waBotNumber, botEnabled: storeSettings.waBotEnabled })
+    .from(storeSettings)
+    .where(eq(storeSettings.id, 1))
+    .limit(1);
+  return {
+    botNumber: row?.botNumber ?? null,
+    botEnabled: row?.botEnabled ?? false,
   };
 }
 
@@ -66,6 +84,7 @@ export async function getStoreOpenStatus(): Promise<StoreOpenStatus | null> {
 export async function updateStoreSettings(
   values: Partial<{
     storeName: string;
+    logoPath: string | null;
     description: string | null;
     phone: string | null;
     whatsapp: string | null;

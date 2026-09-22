@@ -1,53 +1,84 @@
-# UMKM Food Ordering 🍜
+# Kedai Rasa — UMKM Food Ordering 🍜
 
-Aplikasi pemesanan makanan UMKM realtime — **simple untuk pelanggan, powerful untuk pemilik usaha**.
+<p align="center">
+  <img src="src/logo/logo.png" alt="Kedai Rasa" width="96" />
+</p>
 
-Dibangun sesuai `PRD PROJECT BRIEF.md`: Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + MySQL (development via XAMPP) + Drizzle ORM.
+Aplikasi pemesanan makanan UMKM **realtime** — simple untuk pelanggan (tanpa login!), powerful untuk pemilik usaha.
 
-> ⚠️ **Mode development saat ini memakai MySQL/MariaDB (XAMPP)**. Saat deploy, aplikasi dimigrasikan ke **Supabase** (PostgreSQL + Auth + Storage + Realtime). Panduan migrasi ada di bagian bawah.
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · **Supabase (PostgreSQL)** · Drizzle ORM · Vitest
+
+> ⭐ Proyek ini **open source** (MIT). Kontribusi dipersilakan — lihat bagian [Kontribusi](#-kontribusi).
 
 ---
 
 ## ✨ Fitur
 
-### Customer (tanpa login!)
-- **Token Session** — `UMKM-XXXXX-XXXXX`, disimpan sebagai hash SHA-256 di DB, cookie httpOnly
-- **Menu** — kategori pill, pencarian, product card dengan status stok (Masih Banyak / Sedikit Lagi / Habis)
-- **Detail produk** — bottom sheet + quantity stepper
-- **Keranjang** — localStorage, update qty, deteksi produk habis realtime
-- **Checkout** — nama, HP, catatan, **QRIS / COD**, kode promo
-- **Tracking realtime** — timeline status pesanan, update tanpa refresh
-- **Pengaturan** — tema light/dark/system, info toko, peta lokasi (Leaflet), kontak WA/Telepon/Email
+### 👤 Customer — tanpa daftar akun
+- **Token session** `UMKM-XXXXX-XXXXX` — masuk tanpa login; token disimpan sebagai **hash SHA-256** di DB, cookie httpOnly
+- **Data pemesan tersimpan** — nama & No. HP dari pesanan pertama otomatis jadi default di pesanan berikutnya (tetap bisa diedit)
+- **Menu** — filter kategori, pencarian, status stok realtime (Masih Banyak / Sedikit Lagi / Habis)
+- **Keranjang** — localStorage, deteksi produk habis realtime
+- **Checkout** — QRIS / COD, kode promo, catatan
+- **Popup QRIS saat checkout** — QR langsung tampil setelah order dibuat: **download QR**, tombol **“Sudah Bayar”**, dan **upload bukti transfer**
+- **Tracking realtime** — timeline status pesanan, update tanpa refresh (SSE)
+- **Pengaturan** — tema light/dark, info toko, peta, kontak
 
-### Admin (login email + password)
-- **Dashboard** — pendapatan hari ini, order, grafik 7 hari, produk terlaris, notifikasi order baru realtime
-- **Pesanan** — filter status, detail, ubah status order (transisi tervalidasi) & verifikasi pembayaran
-- **Produk & Kategori** — CRUD + upload gambar (validasi MIME & ukuran)
-- **Promo** — percentage / fixed amount, minimum belanja, maks diskon, periode
+### 🛠️ Admin — login email + password
+- **Dashboard** — pendapatan & pesanan hari ini, grafik 7 hari, produk terlaris, order baru realtime
+- **Pesanan** — filter status, transisi tervalidasi, verifikasi pembayaran + lihat **bukti transfer** customer
+- **Produk & Kategori** — CRUD + upload gambar
+- **Promo** — persentase / nominal, minimum belanja, maks diskon, periode
 - **Laporan** — harian / mingguan / bulanan / tahunan + analitik
-- **Toko** — info, status (otomatis / buka paksa / tutup paksa), jam operasional, QRIS & COD
+- **Toko** — info, logo, status buka/tutup (otomatis dari jam operasional atau paksa), jam buka 7 hari, **upload foto QRIS**, COD on/off
+- **Pengumuman** — 1 tombol: caption buka/tutup otomatis dari data terkini, payload WhatsApp broadcast, dan link **poster publik `/poster`** (logo + status + jam hari ini + 3 produk yang pasti tersedia — tidak ada lagi poster basi)
 
-### Keamanan (sesuai PRD §83-85)
-- Semua harga & promo **dihitung ulang di server** — input browser tidak dipercaya
-- Order token `ORD-XXXXXX`, customer token di-hash (raw token tidak pernah disimpan)
-- Guard server di semua route admin (bukan sekadar hide menu)
+### 🔔 Notifikasi WhatsApp (berpetunjuk)
+Pesan WA tidak hanya memberi tahu status, tapi juga **mengarahkan customer**:
+- Simpan token selama pesanan berjalan (token ditulis di pesan)
+- Pantau status di halaman pesanan — tidak perlu chat admin dulu
+- Info refund saat pesanan ditolak, ucapan terima kasih saat selesai
+
+### 🔒 Keamanan
+- Semua harga, diskon, promo **dihitung ulang di server** — input browser tidak dipercaya
+- Token customer di-hash; raw token hanya di cookie httpOnly
+- Order wajib milik session pemanggil (customer tidak bisa lihat pesanan orang lain)
 - Transisi status order tervalidasi (tidak bisa lompat status)
-- Upload file: whitelist MIME + batas 2MB
-- History status bersifat append-only
+- Upload: whitelist MIME + maks 2MB; serving gambar anti path-traversal
+- Semua server action admin berawal `requireAdmin()`
 
 ---
 
-## 🚀 Mulai Cepat
+## 🚀 Mulai Cepat (Supabase)
 
 ### 0. Prasyarat
 - Node.js 20+
-- XAMPP (modul **MySQL/MariaDB** di-start dari XAMPP Control Panel)
+- Akun **Supabase** gratis → [supabase.com](https://supabase.com)
 
-### 1. Install & konfigurasi
+### 1. Setup proyek Supabase
+1. Buat proyek baru → tunggu provisioning selesai
+2. **SQL Editor** → jalankan seluruh file `supabase/migrations/001_initial.sql`, lalu `002_seed.sql`
+3. **Project Settings → Database → Connection string → Pooler** (port **6543**, mode Transaction) → salin URI
+
+### 2. Install & konfigurasi
 ```bash
-cd umkm-food-ordering
+git clone https://github.com/username/kedai-rasa.git
+cd kedai-rasa
 npm install
-cp .env.example .env.local   # lalu sesuaikan (atau edit yang sudah ada)
+cp .env.example .env.local
+```
+
+Isi `.env.local`:
+```env
+# Supabase pooler (port 6543) — WAJIB lewat pooler, bukan direct 5432
+DATABASE_URL=postgresql://postgres.xxxx:PASSWORD@aws-0-region.pooler.supabase.com:6543/postgres
+
+AUTH_SECRET=hasil-generate-di-bawah
+ADMIN_EMAIL=admin@tokoku.id
+ADMIN_PASSWORD=password-kuat-minimal-8
+ADMIN_NAME=Admin Toko
+
+WHATSAPP_PROVIDER=mock        # produksi: fonnte + WHATSAPP_TOKEN
 ```
 
 Generate `AUTH_SECRET` (wajib, min 32 karakter):
@@ -55,26 +86,21 @@ Generate `AUTH_SECRET` (wajib, min 32 karakter):
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-### 2. Setup database
-Pastikan MySQL di XAMPP sudah running, lalu:
-```bash
-npm run db:setup
-```
-Script ini otomatis: membuat database `umkm_food_ordering`, semua tabel, seed (9 produk, 4 kategori, 2 promo, jam operasional, setting toko), dan akun admin awal dari `.env.local`.
+> 💡 **Kenapa port 6543?** Koneksi Drizzle/postgres.js ke Supabase **wajib** `prepare: false` (sudah diset di `src/db/index.ts`) dan lewat **pooler transaction mode**, kalau tidak akan muncul error intermiten `prepared statement does not exist` pada query paralel.
 
 ### 3. Jalankan
 ```bash
 npm run dev
 ```
 
-| Sisi | URL | Kredensial default |
+| Sisi | URL | Kredensial |
 |---|---|---|
-| Customer | http://localhost:3000 | tanpa login — klik "Buat Token Baru" |
-| Admin | http://localhost:3000/admin/login | `admin@kedairasa.id` / `admin123456` |
+| Customer | http://localhost:3000 | tanpa login — klik “Buat Token Baru” |
+| Admin | http://localhost:3000/admin/login | dari `ADMIN_EMAIL` / `ADMIN_PASSWORD` |
 
 ### 4. Test
 ```bash
-npm test          # 29 unit test (token, promo, status toko, business rules)
+npm test   # unit test: token, promo, status toko, pengumuman, broadcast
 ```
 
 ---
@@ -85,88 +111,58 @@ npm test          # 29 unit test (token, promo, status toko, business rules)
 src/
 ├── app/
 │   ├── page.tsx                 # Token gate (customer)
-│   ├── actions/                 # Server actions customer (session, checkout)
-│   ├── (customer)/              # Route group: menu, cart, checkout, orders, settings
+│   ├── poster/                  # Poster publik dinamis (share medsos)
+│   ├── actions/                 # Server action customer (session, checkout, QRIS)
+│   ├── (customer)/              # Route group terproteksi: menu, cart, checkout, orders, settings
 │   ├── admin/
-│   │   ├── login/               # Login admin
-│   │   ├── actions.ts           # Semua server action admin (requireAdmin di awal)
-│   │   └── (dashboard)/         # Layout guard + dashboard, orders, products,
-│   │                            # categories, promos, reports, store
+│   │   ├── actions.ts           # Server action admin (requireAdmin di awal)
+│   │   └── (dashboard)/         # Dashboard, orders, products, promos, reports, store
 │   └── api/
 │       ├── realtime/            # SSE endpoint (realtime lokal)
 │       └── images/              # Serving gambar upload (anti path-traversal)
-├── components/
-│   ├── ui/                      # Design system reusable (Button, Modal, Toast, dst)
-│   └── domain/                  # ProductCard, OrderTimeline, BottomNav, dst
-├── services/                    # Business logic (Order, Catalog, Promo, Store,
-│                                # Report, WhatsApp, AdminAuth, CustomerSession, Realtime)
+├── components/                  # ui/ (design system) + domain/ (bisnis)
+├── services/                    # Business logic: order, catalog, promo, store,
+│                                # report, whatsapp, admin-auth, customer-session, realtime
 ├── lib/                         # token, storage, validations (zod)
-├── db/                          # Drizzle schema + koneksi
+├── db/                          # Drizzle schema + koneksi (prepare:false utk pooler)
 ├── hooks/                       # useCart, useTheme, useRealtime
-└── utils/                       # format, slug, kalkulasi promo & status toko
+└── utils/                       # format, token, promo, status toko, teks WA/pengumuman
 ```
 
 ### Alur order (server-side penuh)
 ```
 Keranjang (client)
-  → createOrderAction  → validasi session & zod
+  → createOrderAction → validasi session + zod
   → cek status toko (buka/tutup)
   → ambil harga dari DB (bukan dari browser)
-  → validasi stok per item
-  → validasi & hitung promo
-  → TRANSACTION: order + items + payment + history + promo_usage
+  → validasi stok per item + hitung promo
+  → TRANSACTION: orders + order_items + payments + histories + promo_usages
+  → simpan nama & No. HP ke customers (prefill pesanan berikutnya)
   → realtime: admin + customer
   → WhatsApp notification (best-effort)
+  → (QRIS) popup bayar: download QR / Sudah Bayar / upload bukti TF
 ```
 
-### Realtime (development)
-Menggunakan **SSE (Server-Sent Events)** via `/api/realtime` dengan topik:
+### Realtime
+SSE via `/api/realtime` dengan topik:
 - `store` — status toko berubah
 - `products` — ketersediaan produk berubah
 - `order:{session_id}` — update pesanan milik satu customer saja
-- `admin` — order baru & perubahan order (khusus admin yang login)
-
-Customer **hanya** menerima topik `order:{session miliknya}` — tidak bisa melihat pesanan orang lain.
+- `admin` — order baru, bukti bayar baru (khusus admin login)
 
 ---
 
-## 🔁 Migrasi ke Supabase (saat deploy)
+## 🤝 Kontribusi
 
-Checklist lengkap:
+1. Fork → buat branch (`git checkout -b fitur-keren`)
+2. `npm test` dan `npx tsc --noEmit` harus hijau sebelum commit
+3. Commit deskriptif, lalu Pull Request
+4. Untuk perubahan besar, buka Issue dulu untuk diskusi
 
-1. **Buat proyek Supabase** (gratis) → catat `Project URL`, `anon key`, `service_role key`, dan **JWT Secret** (Settings → API).
+## 📄 Lisensi
 
-2. **Database** — jalankan `supabase/migrations/001_initial.sql` di SQL Editor Supabase. File ini berisi schema PostgreSQL + **RLS policies** + **realtime publication** (siap pakai, termasuk policy customer-read-own-order via JWT klaim `session_id`).
-
-3. **Auth admin** — ganti `services/admin-auth.ts` dengan Supabase Auth (`@supabase/ssr`). Buat user admin, lalu insert baris `admin_profiles` untuk user tersebut. Halaman admin tidak perlu banyak berubah — cukup `getAdminSession()`.
-
-4. **Realtime** — ganti implementasi `services/realtime.ts`:
-   - Token customer realtime: tanda tangan JWT dengan klaim `app_metadata.session_id` memakai **Supabase JWT Secret** (fungsi `createRealtimeJWT()` sudah ada).
-   - Client subscribe via `supabase.channel()` pada tabel `orders`, `order_items`, `order_status_histories`, `payments`, `products`, `store_settings`.
-   - RLS memastikan customer hanya menerima pesanannya sendiri.
-
-5. **Storage** — ganti `lib/storage.ts` dengan Supabase Storage bucket (`products/`, `store/`, `qris/`) dan sesuaikan URL gambar.
-
-6. **WhatsApp produksi** — set `WHATSAPP_PROVIDER=fonnte` + `WHATSAPP_TOKEN` di environment (atau tambah adapter provider lain di `services/whatsapp.ts`).
-
-7. **Environment produksi** — jangan pernah commit/expose `SUPABASE_SERVICE_ROLE_KEY` ke browser.
+Dilisensikan di bawah [MIT License](LICENSE) — bebas dipakai, dimodifikasi, dan didistribusikan. Cocok untuk UMKM mana pun yang ingin Go-digital. 🇮🇩
 
 ---
 
-## 📋 Status Pengerjaan
-
-- [x] Database MySQL + seed (development) & skema Supabase (deploy)
-- [x] Customer token/session (hash, httpOnly cookie, restore)
-- [x] Menu, keranjang, checkout, promo, QRIS/COD
-- [x] Tracking pesanan realtime + timeline
-- [x] Admin auth, dashboard, CRUD produk/kategori/promo
-- [x] Manajemen pesanan + transisi status tervalidasi
-- [x] Laporan harian/mingguan/bulanan/tahunan + grafik
-- [x] Pengaturan toko, jam operasional, QRIS/COD, peta
-- [x] WhatsApp service (mock dev + adapter Fonnte)
-- [x] 29 unit test lulus + TypeScript clean + production build sukses
-- [ ] Migrasi Supabase (saat deploy)
-
----
-
-*Dibuat dengan Next.js 16, Tailwind CSS v4, Drizzle ORM, dan banyak kopi.* ☕
+*Dibuat dengan Next.js 16, Tailwind CSS v4, Drizzle ORM, Supabase, dan banyak kopi.* ☕

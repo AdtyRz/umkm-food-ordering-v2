@@ -88,7 +88,8 @@ export default async function SettingsPage() {
       {/* Peta */}
       {store.latitude != null && store.longitude != null && (
         <Card className="overflow-hidden p-0">
-          <div className="h-52 w-full">
+          {/* isolate: kontain stacking context Leaflet agar tidak menembus navbar */}
+          <div className="relative isolate h-52 w-full">
             {/* Peta interaktif client-side */}
             <MapWrapper
               latitude={store.latitude}

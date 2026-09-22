@@ -13,7 +13,11 @@ if (!connectionString) {
   throw new Error('DATABASE_URL belum diatur di environment variable');
 }
 
-const client = globalForDb.conn ?? postgres(connectionString);
+// prepare: false — WAJIB untuk Supabase Pooler (PgBouncer transaction mode,
+// port 6543): prepared statement tersimpan per koneksi server, sedangkan
+// transaction mode membagikan koneksi server tiap query → error intermiten
+// "prepared statement ... does not exist" pada query Promise.all paralel.
+const client = globalForDb.conn ?? postgres(connectionString, { prepare: false });
 
 if (process.env.NODE_ENV !== 'production') {
   globalForDb.conn = client;

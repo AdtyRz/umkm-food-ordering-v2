@@ -3,6 +3,7 @@ import { StoreSettingsClient } from './store-client';
 import { StoreStatusClient } from './status-client';
 import { HoursClient } from './hours-client';
 import { PaymentSettingsClient } from './payment-client';
+import { AnnounceClient } from './announce-client';
 
 export const metadata = { title: 'Toko' };
 export const dynamic = 'force-dynamic';
@@ -23,9 +24,11 @@ export default async function AdminStorePage() {
           <StoreStatusClient
             mode={store.storeStatusMode}
           />
+          <AnnounceClient />
           <StoreSettingsClient
             store={{
               storeName: store.storeName,
+              logoPath: store.logoPath ?? null,
               description: store.description ?? '',
               phone: store.phone ?? '',
               whatsapp: store.whatsapp ?? '',
@@ -44,7 +47,10 @@ export default async function AdminStorePage() {
           <HoursClient hours={hours} />
           <PaymentSettingsClient
             qrisReceiverName={store.qrisReceiverName ?? ''}
+            qrisImagePath={store.qrisImagePath ?? null}
             codEnabled={store.codEnabled}
+            waBotNumber={store.waBotNumber ?? null}
+            waBotEnabled={store.waBotEnabled}
           />
         </div>
       </div>

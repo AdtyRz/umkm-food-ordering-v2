@@ -6,6 +6,7 @@ import { useRealtime } from '@/hooks/use-realtime';
 import { useTheme } from '@/hooks/use-theme';
 import { formatHourRange } from '@/utils';
 import type { StoreInfo, StoreOpenStatus } from '@/types';
+import logo from '@/logo/logo.png';
 
 export function StoreHeader({
   store,
@@ -25,19 +26,13 @@ export function StoreHeader({
     <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-accent p-5 text-primary-foreground shadow-md">
       <div className="flex items-center gap-4">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/20 backdrop-blur">
-          {store.logoPath ? (
-            <Image
-              src={`/api/images?path=${encodeURIComponent(store.logoPath)}`}
-              alt={store.storeName}
-              fill
-              sizes="64px"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-3xl" aria-hidden>
-              🍽️
-            </div>
-          )}
+          <Image
+            src={logo}
+            alt={store.storeName}
+            width={64}
+            height={64}
+            className="h-full w-full object-cover"
+          />
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-extrabold tracking-tight">{store.storeName}</h1>

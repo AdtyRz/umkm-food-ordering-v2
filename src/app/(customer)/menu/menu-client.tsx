@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, ShoppingBag } from 'lucide-react';
+import { Ban, Search, ShoppingBag } from 'lucide-react';
 import { StoreHeader } from '@/components/domain/store-header';
 import { ProductCard } from '@/components/domain/product-card';
 import { ProductDetailSheet } from '@/components/domain/product-detail-sheet';
@@ -50,7 +50,7 @@ export function MenuClient({
 
       {!status.isOpen && (
         <div className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning-soft p-4 animate-fade-in">
-          <span className="text-xl" aria-hidden>🚫</span>
+          <Ban className="h-5 w-5 shrink-0 text-warning" aria-hidden />
           <div>
             <p className="text-sm font-bold text-warning">Toko sedang tutup</p>
             <p className="text-xs text-warning/90">
@@ -97,7 +97,7 @@ export function MenuClient({
       {/* Grid produk */}
       {filtered.length === 0 ? (
         <EmptyState
-          icon={<span className="text-2xl" aria-hidden>🔍</span>}
+          icon={<Search className="h-7 w-7" />}
           title="Tidak ada produk ditemukan"
           description="Coba kata kunci lain atau pilih kategori berbeda."
         />

@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ImagePlus, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ImagePlus, Pencil, Plus, Search, Trash2, UtensilsCrossed } from 'lucide-react';
 import { Button, Card, Input, Label, Modal, Select, Textarea, useToast } from '@/components/ui';
 import { StockBadge } from '@/components/domain/stock-badge';
 import {
@@ -161,7 +161,9 @@ export function ProductsClient({
                       {p.imagePath ? (
                         <Image src={`/api/images?path=${encodeURIComponent(p.imagePath)}`} alt="" fill sizes="44px" className="object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-lg" aria-hidden>🍜</div>
+                        <div className="flex h-full w-full items-center justify-center text-muted-foreground/60" aria-hidden>
+                          <UtensilsCrossed className="h-5 w-5" />
+                        </div>
                       )}
                     </div>
                     <span className="font-medium">{p.name}</span>

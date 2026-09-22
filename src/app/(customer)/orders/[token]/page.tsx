@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Smartphone } from 'lucide-react';
 import { getCustomerSession } from '@/services/customer-session';
 import { getOrderByTokenForSession } from '@/services/order';
 import { getStoreInfo } from '@/services/store';
@@ -7,6 +8,7 @@ import { OrderStatusBadge, PaymentStatusBadge } from '@/components/domain/order-
 import { OrderTimeline } from '@/components/domain/order-timeline';
 import { Card } from '@/components/ui';
 import { OrderDetailRealtime } from './realtime';
+import { PaymentProofUploader } from './payment-proof-uploader';
 import { formatDateTime, formatRupiah, paymentMethodLabel } from '@/utils';
 import type { OrderWithDetails } from '@/types';
 
@@ -54,6 +56,25 @@ export default async function OrderDetailPage({
           <span className="font-semibold">{paymentMethodLabel(order.paymentMethod)}</span>
         </div>
 
+        {order.paymentMethod === 'qris' &&
+          order.paymentStatus !== 'paid' &&
+          !order.payment?.proofPath && (
+            <PaymentProofUploader orderToken={order.orderToken} />
+          )}
+        {order.paymentMethod === 'qris' && order.payment?.proofPath && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-muted-foreground">
+              Bukti transfer kamu (menunggu verifikasi admin):
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/images?path=${encodeURIComponent(order.payment.proofPath)}`}
+              alt="Bukti transfer"
+              className="max-h-48 w-auto rounded-xl border border-border object-contain"
+            />
+          </div>
+        )}
+
         {order.paymentMethod === 'qris' && (
           <div className="rounded-xl bg-muted p-3 text-center">
             {store?.qrisImagePath ? (
@@ -66,8 +87,8 @@ export default async function OrderDetailPage({
                 />
               </div>
             ) : (
-              <div className="flex aspect-square w-44 mx-auto items-center justify-center rounded-lg border-2 border-dashed border-border text-5xl" aria-hidden>
-                📱
+              <div className="flex aspect-square w-44 mx-auto items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground/60" aria-hidden>
+                <Smartphone className="h-12 w-12" />
               </div>
             )}
             <p className="mt-2 text-xs text-muted-foreground">
@@ -114,7 +135,7 @@ export default async function OrderDetailPage({
         ))}
         {order.customerNote && (
           <p className="mt-2 rounded-xl bg-muted p-3 text-xs text-muted-foreground">
-            📝 {order.customerNote}
+            {order.customerNote}
           </p>
         )}
       </Card>

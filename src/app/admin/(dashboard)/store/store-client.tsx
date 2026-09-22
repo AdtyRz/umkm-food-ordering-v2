@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { ImagePlus, Store as StoreIcon, Trash2 } from 'lucide-react';
 import { Button, Card, Input, Label, Textarea, useToast } from '@/components/ui';
-import { saveStoreSettingsAction } from '../../actions';
+import { saveStoreSettingsAction, uploadImageAction } from '../../actions';
 
 type StoreForm = {
   storeName: string;
+  logoPath: string | null;
   description: string;
   phone: string;
   whatsapp: string;
@@ -25,9 +28,26 @@ export function StoreSettingsClient({ store }: { store: StoreForm }) {
   const { push } = useToast();
   const [form, setForm] = useState(store);
   const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   const set = (key: keyof StoreForm, value: string | number | null) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const handleLogoUpload = async (file: File) => {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'store');
+    const res = await uploadImageAction(fd);
+    setUploading(false);
+    if (res.ok) {
+      set('logoPath', res.path);
+      push('Logo terupload — jangan lupa simpan.', 'success');
+    } else {
+      push(res.error, 'error');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +70,62 @@ export function StoreSettingsClient({ store }: { store: StoreForm }) {
     <Card className="p-4">
       <h2 className="mb-4 text-sm font-bold">Informasi Toko</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
+        {/* Logo (opsional) */}
+        <div>
+          <Label>Logo Toko (opsional)</Label>
+          <div className="flex items-center gap-3">
+            <div className="relative h-20 w-20 overflow-hidden rounded-2xl border border-border bg-muted">
+              {form.logoPath ? (
+                <Image
+                  src={`/api/images?path=${encodeURIComponent(form.logoPath)}`}
+                  alt="Logo toko"
+                  fill
+                  sizes="80px"
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-muted-foreground" aria-hidden>
+                  <StoreIcon className="h-7 w-7" />
+                </div>
+              )}
+            </div>
+            <div>
+              <input
+                ref={logoFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleLogoUpload(f);
+                  e.target.value = '';
+                }}
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  loading={uploading}
+                  onClick={() => logoFileRef.current?.click()}
+                >
+                  <ImagePlus className="h-4 w-4" /> Pilih Logo
+                </Button>
+                {form.logoPath && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => set('logoPath', null)}
+                  >
+                    <Trash2 className="h-4 w-4" /> Hapus
+                  </Button>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">JPG/PNG/WebP, maks 2MB. Tampil di header menu customer.</p>
+            </div>
+          </div>
+        </div>
         <div>
           <Label htmlFor="s-name" required>Nama Toko</Label>
           <Input id="s-name" value={form.storeName} onChange={(e) => set('storeName', e.target.value)} required maxLength={120} />
